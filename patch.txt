@@ -1,0 +1,572 @@
+--- a/frameworks/base/services/surfaceflinger/DisplayHardware/DisplayHardwareBase.cpp
++++ b/frameworks/base/services/surfaceflinger/DisplayHardware/DisplayHardwareBase.cpp
+@@ -46,9 +46,13 @@
+ 
+ // ----------------------------------------------------------------------------
+ namespace android {
++// ** AndroidChroot
++//static char const * kSleepFileName = "/sys/power/wait_for_fb_sleep";
++//static char const * kWakeFileName = "/sys/power/wait_for_fb_wake";
++static char const * kSleepFileName = "/AndroidChroot/wait_for_fb_sleep";
++static char const * kWakeFileName = "/AndroidChroot/wait_for_fb_wake";
++// **
+ 
+-static char const * kSleepFileName = "/sys/power/wait_for_fb_sleep";
+-static char const * kWakeFileName = "/sys/power/wait_for_fb_wake";
+ static char const * const kOldSleepFileName = "/sys/android_power/wait_for_fb_sleep";
+ static char const * const kOldWakeFileName = "/sys/android_power/wait_for_fb_wake";
+--- a/hardware/libhardware_legacy/power/power.c
++++ b/hardware/libhardware_legacy/power/power.c
+@@ -96,7 +96,10 @@
+ {
+     int i;
+     for (i=0; i<OUR_FD_COUNT; i++) {
+-        int fd = open(paths[i], O_RDWR);
++	// ** AndroidChroot
++        //int fd = open(paths[i], O_RDWR);
++	int fd=0;
++	// **
+         if (fd < 0) {
+             fprintf(stderr, "fatal error opening \"%s\"\n", paths[i]);
+             g_error = errno;
+@@ -144,8 +147,10 @@
+     else {
+         return EINVAL;
+     }
+-
+-    return write(fd, id, strlen(id));
++// ** AndroidChroot
++//    return write(fd, id, strlen(id));
++    return strlen(id);
++// **
+ }
+ 
+ int
+@@ -156,8 +161,10 @@
+ //    LOGI("release_wake_lock id='%s'\n", id);
+ 
+     if (g_error) return g_error;
+-
+-    ssize_t len = write(g_fds[RELEASE_WAKE_LOCK], id, strlen(id));
++// ** AndroidChroot
++    //ssize_t len = write(g_fds[RELEASE_WAKE_LOCK], id, strlen(id));
++    ssize_t len = strlen(id);
++// **
+     return len >= 0;
+ }
+ 
+@@ -166,7 +173,10 @@
+ {
+     int i;
+     for (i=0; i<CPU_FD_COUNT; i++) {
+-        int fd = open(CPU_PATHS[i], O_RDWR);
++	// ** AndroidChroot      
++	//int fd = open(CPU_PATHS[i], O_RDWR);
++	int fd=0;
++	// **
+         if (fd < 0) {
+             LOGE("fatal error opening \"%s\"\n", CPU_PATHS[i]);
+             cpu_fds_error = errno;
+@@ -191,10 +201,12 @@
+ initialize_cpu_min_max(void)
+ {
+     if(cpu_min_max_initialized == 0) {
+-        read(cpu_fds[CPU_SCALING_MAX_FREQ],
++      // ** AndroidChroot
++      /*  read(cpu_fds[CPU_SCALING_MAX_FREQ],
+                 cpu_scaling_max_freq_default, CPU_FREQ_MAX_SIZE);
+         read(cpu_fds[CPU_SCALING_MIN_FREQ],
+-                cpu_scaling_min_freq_default, CPU_FREQ_MAX_SIZE);
++                cpu_scaling_min_freq_default, CPU_FREQ_MAX_SIZE);*/
++      // **
+         cpu_min_max_initialized = 1;
+     }
+ }
+@@ -205,9 +217,11 @@
+     initialize_cpu_fds();
+     if (cpu_fds_error) return cpu_fds_error;
+     initialize_cpu_min_max();
+-
+-    return write(cpu_fds[CPU_SCALING_MIN_FREQ],
+-                cpu_scaling_max_freq_default, CPU_FREQ_MAX_SIZE);
++// ** AndroidChroot
++/*    return write(cpu_fds[CPU_SCALING_MIN_FREQ],
++                cpu_scaling_max_freq_default, CPU_FREQ_MAX_SIZE);*/
++    return CPU_FREQ_MAX_SIZE;
++// **
+ }
+ 
+ int
+@@ -217,9 +231,11 @@
+     if (cpu_fds_error) return cpu_fds_error;
+ 
+     if(cpu_min_max_initialized == 0) return 0;
+-
+-    return write(cpu_fds[CPU_SCALING_MIN_FREQ],
+-                cpu_scaling_min_freq_default, CPU_FREQ_MAX_SIZE);
++// ** AndroidChroot
++/*    return write(cpu_fds[CPU_SCALING_MIN_FREQ],
++                cpu_scaling_min_freq_default, CPU_FREQ_MAX_SIZE);*/
++    return CPU_FREQ_MAX_SIZE;
++// **
+ }
+ 
+ 
+@@ -227,8 +243,8 @@
+ set_last_user_activity_timeout(int64_t delay)
+ {
+ //    LOGI("set_last_user_activity_timeout delay=%d\n", ((int)(delay)));
+-
+-    int fd = open(AUTO_OFF_TIMEOUT_DEV, O_RDWR);
++// ** AndroidChroot
++/*    int fd = open(AUTO_OFF_TIMEOUT_DEV, O_RDWR);
+     if (fd >= 0) {
+         char buf[32];
+         ssize_t len;
+@@ -239,7 +255,9 @@
+         return 0;
+     } else {
+         return errno;
+-    }
++    }*/
++    return 0;
++// **
+ }
+ 
+ int
+@@ -264,7 +282,9 @@
+         len = snprintf(buf, sizeof(buf), "%s", off_state);
+ 
+     buf[sizeof(buf) - 1] = '\0';
+-    len = write(g_fds[REQUEST_STATE], buf, len);
++    // ** AndroidChroot
++    //len = write(g_fds[REQUEST_STATE], buf, len);
++    //  **
+     if(len < 0) {
+         LOGE("Failed setting last user activity: g_error=%d\n", g_error);
+     }
+--- a/hardware/libhardware_legacy/wifi/wifi.c
++++ b/hardware/libhardware_legacy/wifi/wifi.c
+@@ -119,6 +119,7 @@
+ 
+ 
+ static int init_rfkill() {
++  return 0;
+     char path[64];
+     char buf[16];
+     int fd;
+@@ -144,6 +145,7 @@
+ }
+ 
+ static int check_wifi_power() {
++  return 0;
+     int sz;
+     int fd = -1;
+     int ret = -1;
+@@ -181,6 +183,7 @@
+ }
+ 
+ static int set_wifi_power(int on) {
++  return 0;
+     int sz;
+     int fd = -1;
+     int ret = -1;
+@@ -222,6 +225,7 @@
+ 
+ static int insmod(const char *filename, const char *args)
+ {
++  return 0;
+     void *module;
+     unsigned int size;
+     int ret;
+@@ -244,6 +248,7 @@
+ 
+ static int rmmod(const char *modname)
+ {
++  return 0;
+     int ret = -1;
+     int maxtry = 10;
+ 
+@@ -268,6 +273,7 @@
+ 
+ int do_dhcp_request(int *ipaddr, int *gateway, int *mask,
+                     int *dns1, int *dns2, int *server, int *lease) {
++  return 0;
+     /* For test driver, always report success */
+     if (strcmp(iface, WIFI_TEST_INTERFACE) == 0)
+         return 0;
+@@ -289,6 +295,7 @@
+ }
+ 
+ static int check_hotspot_driver_loaded() {
++  return 0;
+     char driver_status[PROPERTY_VALUE_MAX];
+     FILE *proc;
+     char line[sizeof(AP_DRIVER_MODULE_TAG)+10];
+@@ -321,6 +328,7 @@
+ 
+ int hotspot_load_driver()
+ {
++  return 0;
+     char driver_status[PROPERTY_VALUE_MAX];
+     int count = 100; /* wait at most 20 seconds for completion */
+ 
+@@ -373,6 +381,7 @@
+ 
+ int hotspot_unload_driver()
+ {
++  return 0;
+     int count = 20; /* wait at most 10 seconds for completion */
+ 
+     if (rmmod(AP_DRIVER_MODULE_NAME) == 0) {
+@@ -397,7 +406,7 @@
+ }
+ 
+ static int check_driver_loaded() {
+-
++    return 0;
+     /* Use rfkill if "module" is 'rfkill' */
+     if (!strncmp(DRIVER_MODULE_PATH, "rfkill", 6)) {
+         return check_wifi_power();
+@@ -435,6 +444,7 @@
+ 
+ int wifi_load_driver()
+ {
++  return 0;
+     char driver_status[PROPERTY_VALUE_MAX];
+     int count = 100; /* wait at most 20 seconds for completion */
+ 
+@@ -486,6 +496,7 @@
+ 
+ int wifi_unload_driver()
+ {
++    return 0;
+     int count = 20; /* wait at most 10 seconds for completion */
+ 
+     if (rmmod(DRIVER_MODULE_NAME) == 0) {
+@@ -511,6 +522,7 @@
+ 
+ int ensure_config_file_exists()
+ {
++    return 0;
+     char buf[2048];
+     int srcfd, destfd;
+     int nread;
+@@ -560,6 +572,7 @@
+ 
+ int wifi_start_supplicant()
+ {
++  return 0;
+     char supp_status[PROPERTY_VALUE_MAX] = {'\0'};
+     int count = 200; /* wait at most 20 seconds for completion */
+ #ifdef HAVE_LIBC_SYSTEM_PROPERTIES
+@@ -632,6 +645,7 @@
+ 
+ int wifi_stop_supplicant()
+ {
++    return 0;
+     char supp_status[PROPERTY_VALUE_MAX] = {'\0'};
+     int count = 50; /* wait at most 5 seconds for completion */
+ 
+@@ -656,6 +670,9 @@
+ 
+ int wifi_connect_to_supplicant()
+ {
++    //
++        return 0;
++    //
+     char ifname[256];
+     char supp_status[PROPERTY_VALUE_MAX] = {'\0'};
+ 
+@@ -697,6 +714,7 @@
+ 
+ int wifi_send_command(struct wpa_ctrl *ctrl, const char *cmd, char *reply, size_t *reply_len)
+ {
++    return 0;
+     int ret;
+ 
+     if (ctrl_conn == NULL) {
+@@ -718,6 +736,7 @@
+ 
+ int wifi_wait_for_event(char *buf, size_t buflen)
+ {
++    return 0;
+     size_t nread = buflen - 1;
+     int fd;
+     fd_set rfds;
+@@ -770,6 +789,7 @@
+ 
+ void wifi_close_supplicant_connection()
+ {
++    return;
+     if (ctrl_conn != NULL) {
+         wpa_ctrl_close(ctrl_conn);
+         ctrl_conn = NULL;
+--- a/frameworks/base/wifi/java/android/net/wifi/WifiStateTracker.java
++++ b/frameworks/base/wifi/java/android/net/wifi/WifiStateTracker.java
+@@ -394,10 +394,19 @@
+ 
+     public WifiStateTracker(Context context, Handler target) {
+         super(context, target, ConnectivityManager.TYPE_WIFI, 0, "WIFI", "");
+-        
++        mNetworkInfo.setIsAvailable(true);
++	setDetailedState(DetailedState.CONNECTED);
+         mWifiInfo = new WifiInfo();
+         mWifiMonitor = new WifiMonitor(this);
+-        mHaveIpAddress = false;
++        //mHaveIpAddress = false;
++        //mObtainingIpAddress = false;
++        //setTornDownByConnMgr(false);
++        //mDisconnectPending = false;
++        //mScanResults = new ArrayList<ScanResult>();
++        // Allocate DHCP info object once, and fill it in on each request
++        //mDhcpInfo = new DhcpInfo();
++        //mRunState = RUN_STATE_STARTING;
++	mHaveIpAddress = true;
+         mObtainingIpAddress = false;
+         setTornDownByConnMgr(false);
+         mDisconnectPending = false;
+@@ -448,7 +457,6 @@
+             "dhcp." + mInterfaceName + ".dns2"
+         };
+         mBatteryStats = IBatteryStats.Stub.asInterface(ServiceManager.getService("batteryinfo"));
+-
+     }
+ 
+     /**
+@@ -1520,15 +1528,15 @@
+         String BSSID = null;
+         String suppState = null;
+         int netId = -1;
+-        String reply = status();
+-        if (reply != null) {
++//        String reply = status();
++//        if (reply != null) {
+             /*
+              * Parse the reply from the supplicant to the status command, and update
+              * local state accordingly. The reply is a series of lines of the form
+              * "name=value".
+              */
+ 
+-            String[] lines = reply.split("\n");
++/*            String[] lines = reply.split("\n");
+             for (String line : lines) {
+                 String[] prop = line.split(" *= *", 2);
+                 if (prop.length < 2)
+@@ -1544,7 +1552,11 @@
+                 else if (name.equalsIgnoreCase("wpa_state"))
+                     suppState = value;
+             }
+-        }
++        }*/
++	SSID = "SSID";
++	BSSID = "12:34:56:78:9A:BC";
++	netId = 1;
++	suppState = "COMPLETED";
+         info.setNetworkId(netId);
+         info.setSSID(SSID);
+         info.setBSSID(BSSID);
+@@ -2055,10 +2067,13 @@
+      * @return RSSI value, -1 on failure
+      */
+     public synchronized int getRssi() {
+-        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
++// ** AndroidChroot
++    return -55;
++/*        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
+             return -1;
+         }
+-        return WifiNative.getRssiCommand();
++        return WifiNative.getRssiCommand();*/
++// **
+     }
+ 
+     /**
+@@ -2067,10 +2082,13 @@
+      * @return RSSI value, -1 on failure
+      */
+     public synchronized int getRssiApprox() {
+-        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
++// ** AndroidChroot
++    return -55;
++/*        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
+             return -1;
+         }
+-        return WifiNative.getRssiApproxCommand();
++        return WifiNative.getRssiApproxCommand();*/
++// **
+     }
+ 
+     /**
+@@ -2079,10 +2097,13 @@
+      * @return link speed, -1 on failure
+      */
+     public synchronized int getLinkSpeed() {
+-        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
++// ** AndroidChroot
++	return 150;
++/*        if (mWifiState.get() != WIFI_STATE_ENABLED || isDriverStopped()) {
+             return -1;
+         }
+-        return WifiNative.getLinkSpeedCommand();
++        return WifiNative.getLinkSpeedCommand();*/
++// **
+     }
+ 
+     /**
+--- a/frameworks/base/services/java/com/android/server/WifiService.java
++++ b/frameworks/base/services/java/com/android/server/WifiService.java
+@@ -315,8 +315,11 @@
+      */
+     public void startWifi() {
+         /* Start if Wi-Fi is enabled or the saved state indicates Wi-Fi was on */
+-        boolean wifiEnabled = !isAirplaneModeOn()
+-                && (getPersistedWifiEnabled() || testAndClearWifiSavedState());
++// ** AndroidChroot
++/*        boolean wifiEnabled = !isAirplaneModeOn()
++                && (getPersistedWifiEnabled() || testAndClearWifiSavedState());*/
++    boolean wifiEnabled=true;
++// **
+         Slog.i(TAG, "WifiService starting up with Wi-Fi " +
+                 (wifiEnabled ? "enabled" : "disabled"));
+         setWifiEnabled(wifiEnabled);
+@@ -486,8 +489,8 @@
+         }
+ 
+         setWifiEnabledState(enable ? WIFI_STATE_ENABLING : WIFI_STATE_DISABLING, uid);
+-
+-        if (enable) {
++// ** AndroidChroot
++/*        if (enable) {
+             if (!mWifiStateTracker.loadDriver()) {
+                 Slog.e(TAG, "Failed to load Wi-Fi driver.");
+                 setWifiEnabledState(WIFI_STATE_UNKNOWN, uid);
+@@ -516,12 +519,12 @@
+                 setWifiEnabledState(WIFI_STATE_UNKNOWN, uid);
+                 failedToStopSupplicantOrUnloadDriver = true;
+             }
+-
++*/
+             /**
+              * Reset connections and disable interface
+              * before we unload the driver
+              */
+-            mWifiStateTracker.resetConnections(true);
++/*            mWifiStateTracker.resetConnections(true);
+ 
+             if (!mWifiStateTracker.unloadDriver()) {
+                 Slog.e(TAG, "Failed to unload Wi-Fi driver.");
+@@ -535,7 +538,8 @@
+                 return false;
+             }
+         }
+-
++*/
++// **
+         // Success!
+ 
+         if (persist) {
+@@ -806,11 +810,11 @@
+ 
+         setWifiApEnabledState(enable ? WIFI_AP_STATE_ENABLING :
+                                        WIFI_AP_STATE_DISABLING, uid, DriverAction.NO_DRIVER_UNLOAD);
+-
+-        if (enable) {
++// ** AndroidChroot
++//        if (enable) {
+ 
+             /* Use default config if there is no existing config */
+-            if (wifiConfig == null) wifiConfig = getWifiApConfiguration();
++/*            if (wifiConfig == null) wifiConfig = getWifiApConfiguration();
+ 
+             if (SystemProperties.getBoolean("wifi.hotspot.ti", false)) {
+                 if (!mWifiStateTracker.loadHotspotDriver()) {
+@@ -866,7 +870,8 @@
+                 }
+             }
+         }
+-
++*/
++// **
+         setWifiApEnabledState(eventualWifiApState, uid, DriverAction.NO_DRIVER_UNLOAD);
+         return true;
+     }
+--- a/frameworks/base/core/jni/android_os_Power.cpp
++++ b/frameworks/base/core/jni/android_os_Power.cpp
+@@ -22,6 +22,7 @@
+ #include <hardware_legacy/power.h>
+ #include <sys/reboot.h>
+ #include <reboot/reboot.h>
++#include <stdlib.h>
+ 
+ namespace android
+ {
+@@ -79,14 +80,18 @@
+ static void android_os_Power_shutdown(JNIEnv *env, jobject clazz)
+ {
+     sync();
++// ** AndroidChroot
++    system("/AndroidChroot/power_shutdown.sh &");
+ #ifdef HAVE_ANDROID_OS
+-    reboot(RB_POWER_OFF);
++   // reboot(RB_POWER_OFF);
+ #endif
++// **
+ }
+ 
+ static void android_os_Power_reboot(JNIEnv *env, jobject clazz, jstring reason)
+ {
+-    sync();
++// ** AndroidChroot
++/*sync();
+ #ifdef HAVE_ANDROID_OS
+     if (reason == NULL) {
+         reboot_wrapper(NULL);
+@@ -96,7 +101,9 @@
+         env->ReleaseStringUTFChars(reason, chars);  // In case it fails.
+     }
+     jniThrowIOException(env, errno);
+-#endif
++#endif*/
++    android_os_Power_shutdown(env,clazz);
++// **   
+ }
+ 
+ static JNINativeMethod method_table[] = {
+--- a/hardware/libhardware/modules/gralloc/framebuffer.cpp
++++ b/hardware/libhardware/modules/gralloc/framebuffer.cpp
+@@ -43,12 +43,14 @@
+ /*****************************************************************************/
+ 
+ // numbers of buffers for page flipping
+-#if defined(NO_PAGE_FLIPPING)
++// ** AndroidChroot
++//#if defined(NO_PAGE_FLIPPING)
+ // page-flipping is buggy on some devices
+ #define NUM_BUFFERS 1
+-#else
++/*#else
+ #define NUM_BUFFERS 2
+-#endif
++#endif*/
++// **
+ 
+ 
+ enum {
+@@ -354,9 +356,14 @@
+         status = mapFrameBuffer(m);
+         if (status >= 0) {
+             int stride = m->finfo.line_length / (m->info.bits_per_pixel >> 3);
+-            int format = (m->info.bits_per_pixel == 32)
++// ** AndroidChroot	
++/*            int format = (m->info.bits_per_pixel == 32)
+                          ? HAL_PIXEL_FORMAT_RGBX_8888
+-                         : HAL_PIXEL_FORMAT_RGB_565;
++                         : HAL_PIXEL_FORMAT_RGB_565;*/
++            int format = (m->info.bits_per_pixel == 32)
++                         ? HAL_PIXEL_FORMAT_BGRA_8888
++                         : HAL_PIXEL_FORMAT_RGB_565;			 
++// **
+ #ifdef NO_32BPP
+             format = HAL_PIXEL_FORMAT_RGB_565;
+ #endif
